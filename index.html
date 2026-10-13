@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#101629" />
+    <title>Véhicule Arena</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+      <div id="menu" class="overlay">
+        <div class="brand"><span class="brand-mark">V</span><span>VÉHICULE<br><b>ARENA</b></span></div>
+        <div class="menu-card">
+          <p class="eyebrow">COMBAT 3D · PROTOTYPE</p>
+          <h1>Prêt à<br><span>l'affrontement ?</span></h1>
+          <p class="intro">Entre dans l'arène. Garde tes distances, trouve une ligne de tir et fais mouche.</p>
+          <label for="arena-select">CHOISIS TON ARÈNE</label>
+          <select id="arena-select">
+            <option value="citadel">La Citadelle</option>
+            <option value="foundry">Fonderie</option>
+            <option value="neon">Secteur Néon</option>
+          </select>
+          <button id="bot-button" class="primary">JOUER CONTRE UN BOT <span>↗</span></button>
+          <div class="room-box">
+            <div><b>Partie amicale en réseau local</b><small>Le mode salle arrive dans la prochaine étape.</small></div>
+            <button id="room-button" class="secondary" disabled>BIENTÔT</button>
+          </div>
+          <p class="hint">ZQSD / WASD pour bouger · Souris pour viser · Clic ou Espace pour tirer</p>
+        </div>
+        <div class="footer-note">VÉHICULE ARENA <span>·</span> BUILD 0.1</div>
+      </div>
+      <div id="hud" class="hud hidden">
+        <div class="hud-top"><div class="hud-title">VÉHICULE <b>ARENA</b></div><div class="round-pill">DUEL D'ENTRAÎNEMENT</div><button id="leave-button" class="leave">QUITTER</button></div>
+        <div class="scorebar"><div class="player-stat"><span>JOUEUR</span><b id="player-score">0</b><div class="health-track"><i id="player-health"></i></div></div><div class="versus">VS</div><div class="player-stat enemy"><span>BOT · RIVAL</span><b id="bot-score">0</b><div class="health-track"><i id="bot-health"></i></div></div></div>
+        <div id="notice" class="notice"></div>
+        <div class="crosshair">+</div>
+        <div class="mobile-controls"><div id="stick" class="stick"><div id="stick-knob" class="stick-knob"></div></div><button id="fire-button" class="fire-button">FIRE</button></div>
+        <div class="controls-tip">ZQSD / WASD — déplacement <span>·</span> Souris — visée <span>·</span> Clic / Espace — tir</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
