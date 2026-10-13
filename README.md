@@ -1,49 +1,27 @@
 # Véhicule Arena
 
-Prototype 3D de combat de véhicules : mode bot et salles amicales sur réseau local.
+Prototype de combat 3D en arène : caméra troisième personne, conduite, tirs, bot et salle amicale LAN. Interface adaptée aux ordinateurs, tablettes et téléphones tactiles.
 
-## Prérequis
+## Lancer sur Windows
 
-- Node.js LTS (Node 20 ou 22)
-- npm
-
-## Installation et lancement sous Windows
-
-Depuis PowerShell, dans le dossier du dépôt :
+1. Installer Node.js LTS.
+2. Dans PowerShell, depuis le dossier du projet :
 
 ```powershell
 npm install
 npm start
 ```
 
-`npm start` construit le client puis démarre le serveur HTTP et WebSocket. Le jeu est servi à l'adresse `http://localhost:3000` (sauf indication différente affichée par le serveur). Pour lancer uniquement le serveur après avoir construit le client : `npm run server`.
+Le jeu s'ouvre sur `http://localhost:3000`. Le serveur affiche également une ou plusieurs URL `Réseau local` comme `http://192.168.1.24:3000` : c'est le lien à ouvrir sur les téléphones connectés au même Wi-Fi. Il n'est pas nécessaire de saisir une adresse de serveur dans le jeu. Si Windows demande une autorisation Pare-feu, autoriser Node.js sur les réseaux privés. Le réseau doit permettre la communication entre appareils (désactiver l'isolation des clients/du Wi-Fi invité).
 
-Si npm indique qu'il manque `ws`, vérifiez que vous êtes sur la branche `feature/core-gameplay-lan`, puis récupérez les dernières modifications et réinstallez les dépendances :
+Pour développer, utilisez `npm run dev` puis ouvrez l'URL indiquée par Vite; pour le test multi-appareils, préférez `npm start`.
 
-```powershell
-git pull
-npm install
-npm start
-```
+## Commandes
 
-## Jouer avec un ami sur le même réseau Wi-Fi/LAN
+Clavier : ZQSD ou WASD / flèches pour bouger, Espace pour tirer. Écran tactile : joystick virtuel et bouton FEU. Utiliser le menu pour lancer le bot ou créer/rejoindre un salon amical.
 
-1. Lancez le serveur sur le PC hôte avec `npm start`.
-2. Autorisez Node.js sur les réseaux privés dans la fenêtre du pare-feu Windows (ou créez une règle entrante pour le port 3000).
-3. Trouvez l'adresse IPv4 du PC hôte avec `ipconfig`.
-4. Sur l'autre appareil du même réseau, ouvrez `http://ADRESSE_IPV4_DU_PC:3000`.
-5. Créez ou rejoignez une salle depuis le menu du jeu.
+## Connexion entre appareils
 
-Les appareils doivent être sur le même réseau local. Les connexions entre réseaux différents et l'hébergement public ne sont pas pris en charge à ce stade.
+Le PC hôte exécute le serveur avec `npm start`. Sur les autres appareils du même réseau, ouvrir l'URL locale affichée dans PowerShell (ou scanner le QR code fourni lors de la création d'un salon). Le client se connecte automatiquement au WebSocket sur la même origine; aucun champ d'adresse de serveur n'est nécessaire. Le pare-feu Windows doit autoriser les connexions entrantes sur le réseau privé.
 
-## Développement
-
-```powershell
-npm run dev
-```
-
-Vite lance le client en mode développement. Les parties LAN nécessitent également le serveur (`npm run server`) ; utilisez l'adresse/port du serveur configurés par l'application.
-
-## État du prototype
-
-Le jeu et le mode LAN sont en cours de développement. Le relais réseau doit encore être vérifié avec deux appareils avant d'être considéré comme validé de bout en bout.
+> Le LAN est un prototype de synchronisation de positions. Il n'y a pas encore de simulation autoritative, de synchronisation robuste des dégâts/score, ni de sécurité contre la triche; le mode bot est le mode de jeu complet actuellement visé.

@@ -3,65 +3,356 @@ import './style.css';
 
 const app = document.querySelector('#app');
 app.innerHTML = `
-  <main class="game-shell">
-    <header class="topbar"><a class="brand" href="#">VÉHICULE <b>ARENA</b></a><div class="top-actions"><span class="status" id="net-status">MODE BOT</span><button id="menu-btn" class="icon-btn" aria-label="Menu">☰</button></div></header>
-    <section class="stage"><div id="game"></div>
-      <div class="hud"><div class="score-card"><small>TOI</small><strong id="score-player">0</strong></div><div class="match-label">PREMIER À 3</div><div class="score-card opponent"><small id="opponent-label">BOT</small><strong id="score-bot">0</strong></div></div>
-      <div class="health-row"><span>VÉHICULE <b id="hp-text">100</b>%</span><div class="health-track"><i id="hp-fill"></i></div></div>
-      <div class="crosshair">＋</div><div class="aim-marker" id="aim-marker">◈</div>
-      <div class="toast" id="toast" hidden></div>
-      <div class="mobile-controls" id="mobile-controls"><div class="touch-pad" id="touch-pad"><span class="pad-dot"></span></div><div class="mobile-actions"><button id="touch-fire" class="fire-button">FIRE</button><button id="touch-boost" class="boost-button">BOOST</button></div></div>
-      <div class="start-overlay" id="start-overlay"><div class="start-card"><div class="eyebrow">ARÈNE DE COMBAT · 3D</div><h1>Prêt à<br><em>combattre ?</em></h1><p>Affronte le bot ou crée une salle privée pour jouer avec un ami sur le même réseau.</p><div class="start-actions"><button class="primary" id="start-bot">Jouer contre le bot <span>→</span></button><button class="secondary" id="open-room">Salle amicale LAN</button></div><div class="controls-hint">ZQSD / WASD pour conduire · souris pour viser · clic ou ESPACE pour tirer</div></div></div>
-      <div class="room-panel" id="room-panel" hidden><button class="close-panel" id="close-room">×</button><div class="eyebrow">MULTIJOUEUR LOCAL</div><h2>Salle amicale</h2><p>Le PC qui héberge lance le serveur ; les amis sur le même Wi-Fi saisissent son adresse locale.</p><label>Adresse du serveur<input id="server-address" placeholder="http://192.168.1.10:3000" autocomplete="url"></label><label>Code de salle<input id="room-code" placeholder="Ex. A7K2Q" maxlength="5"></label><div class="room-actions"><button id="create-room" class="primary">Créer une salle</button><button id="join-room" class="secondary">Rejoindre</button></div><small id="room-message">En attente d’une connexion.</small></div>
-      <div class="end-overlay" id="end-overlay" hidden><div class="end-card"><div class="eyebrow">FIN DE PARTIE</div><h2 id="end-title">Victoire !</h2><button class="primary" id="play-again">Rejouer</button></div></div>
-    </section><footer class="footer"><span>VÉHICULE ARENA <i>·</i> PROTOTYPE</span><span id="match-info">ARÈNE NÉON <i>·</i> BOT</span></footer>
+  <main class="shell">
+    <header class="topbar"><a class="brand" href="#">VÉHICULE <span>ARENA</span></a><div class="top-actions"><span class="status"><i></i> PRÊT À JOUER</span><button class="icon-button" id="sound-toggle" aria-label="Activer ou couper le son">♪</button></div></header>
+    <section class="layout">
+      <aside class="panel menu-panel">
+        <div class="eyebrow">ARCADE COMBAT • 3D</div><h1>PRENDS LE<br><em>VOLANT.</em></h1><p class="lead">Entre dans l’arène. Repère ta cible. Fais feu.</p>
+        <div class="mode-tabs"><button class="mode-tab active" data-mode="bot">CONTRE UN BOT</button><button class="mode-tab" data-mode="lan">AVEC UN AMI</button></div>
+        <div class="bot-options" id="bot-options"><label for="bot-difficulty">NIVEAU DU BOT</label><select id="bot-difficulty"><option value="easy">Recrue</option><option value="normal" selected>Pilote confirmé</option><option value="hard">As de l’arène</option></select></div>
+        <div class="lan-options hidden" id="lan-options"><label for="room-code">CODE SALON</label><div class="room-row"><input id="room-code" maxlength="5" placeholder="ABCDE" autocomplete="off"><button class="secondary-button" id="join-room">REJOINDRE</button></div><button class="primary-button" id="create-room">CRÉER UN SALON</button><p class="hint" id="lan-hint">Même Wi-Fi : scanne le QR code du PC hôte ou ouvre son lien local.</p><div id="share-box" class="share-box hidden"></div></div>
+        <button class="primary-button" id="play-button">LANCER LA PARTIE <span>→</span></button>
+        <div class="controls-card"><div class="controls-title">COMMANDES</div><div class="key-row"><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd><span>ou</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><b>SE DÉPLACER</b></div><div class="key-row"><kbd>ESPACE</kbd><b>TIRER</b></div><div class="mobile-hint">Sur téléphone : joystick à gauche, bouton FEU à droite.</div></div>
+      </aside>
+      <section class="game-panel"><div class="game-top"><div><span class="eyebrow">ARÈNE 01</span><h2>DOCKS DE NÉON</h2></div><div class="scoreboard"><div><small>JOUEUR</small><b id="player-score">0</b></div><span>:</span><div><small>BOT</small><b id="bot-score">0</b></div></div></div>
+        <div class="viewport-wrap"><div id="viewport" aria-label="Arène 3D Véhicule Arena"></div><div class="hud"><div class="health-card"><span>VOTRE BLINDAGE</span><div class="health-track"><i id="player-health"></i></div></div><div class="health-card enemy-health"><span id="enemy-label">BLINDAGE BOT</span><div class="health-track"><i id="bot-health"></i></div></div></div><div class="game-message hidden" id="game-message"></div><div class="touch-controls" id="touch-controls"><div class="joystick" id="joystick"><div class="joystick-knob" id="joystick-knob"></div></div><button class="fire-button" id="fire-button">FEU</button></div><div class="loading-message hidden" id="loading-message">Chargement de l’arène 3D…</div></div><footer class="game-footer"><span id="game-status">PRÊT • CHOISIS UN MODE POUR COMMENCER</span><span>PREMIER À 3 POINTS</span></footer></section>
+    </section>
+    <footer class="page-footer"><span>VÉHICULE ARENA</span><span>JOUE EN GRAND. JOUE ENSEMBLE.</span></footer>
   </main>`;
 
-const $ = (s) => document.querySelector(s);
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#10141d'); scene.fog = new THREE.Fog('#10141d', 35, 90);
-const camera = new THREE.PerspectiveCamera(58, 1, .1, 150);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace;
-$('#game').appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xaecaff, 0x202333, 2.1));
-const key = new THREE.DirectionalLight(0xffffff, 3.2); key.position.set(-8, 16, 7); key.castShadow = true; key.shadow.mapSize.set(1024,1024); scene.add(key);
-const arenaSize = 30, half = arenaSize / 2;
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(arenaSize, arenaSize), new THREE.MeshStandardMaterial({color:0x202b38, roughness:.78, metalness:.18})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
-const grid = new THREE.GridHelper(arenaSize, 30, 0x36c5cf, 0x344251); grid.position.y=.015; scene.add(grid);
-const walls=[];
-function box(x,y,z,sx,sy,sz,color,obstacle=true){const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),new THREE.MeshStandardMaterial({color,roughness:.46,metalness:.26}));mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);if(obstacle)walls.push({x,z,hx:sx/2,hz:sz/2});return mesh;}
-for(const [x,z,sx,sz] of [[0,-half,arenaSize,1],[0,half,arenaSize,1],[-half,0,1,arenaSize],[half,0,1,arenaSize]]){box(x,1,z,sx,2,sz,0x263547,false);}
-// Low cover preserves sightlines while giving players meaningful routes.
-box(-5,.65,-4,3.2,1.3,1.4,0x287a83);box(5,.65,4,3.2,1.3,1.4,0x7b456c);box(0,.55,0,2.3,1.1,2.3,0x49516a);box(-7,.5,5,1.4,1,3,0x385668);box(7,.5,-5,1.4,1,3,0x624660);
-const arenaLights=[];for(const [x,z,c] of [[-13,-13,0x20d8df],[13,-13,0xff547a],[-13,13,0xff547a],[13,13,0x20d8df]]){const l=new THREE.PointLight(c,20,12);l.position.set(x,3,z);scene.add(l);arenaLights.push(l);}
-function makeCar(color,accent){const root=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(1.35,.48,2.1),new THREE.MeshStandardMaterial({color,metalness:.45,roughness:.3}));body.position.y=.65;body.castShadow=true;root.add(body);const cabin=new THREE.Mesh(new THREE.BoxGeometry(.92,.42,.9),new THREE.MeshStandardMaterial({color:accent,metalness:.25,roughness:.2}));cabin.position.set(0,1.04,-.12);cabin.castShadow=true;root.add(cabin);const bumper=new THREE.Mesh(new THREE.BoxGeometry(1.48,.2,.3),new THREE.MeshStandardMaterial({color:accent,emissive:accent,emissiveIntensity:.25}));bumper.position.set(0,.48,-1.06);root.add(bumper);for(const x of [-.72,.72])for(const z of [-.62,.62]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.18,16),new THREE.MeshStandardMaterial({color:0x11151b,roughness:.8}));wheel.rotation.z=Math.PI/2;wheel.position.set(x,.4,z);root.add(wheel);}const muzzle=new THREE.Object3D();muzzle.position.set(0,.82,-1.08);root.add(muzzle);scene.add(root);return {root,muzzle};}
-const player=makeCar(0x29d9e5,0x8ff7ff), bot=makeCar(0xff476f,0xffa0b5);
-const bullets=[], clock=new THREE.Clock();
-const state={active:false,online:false,hp:100,playerScore:0,botScore:0,playerSpeed:0,botSpeed:0,fireCooldown:0,botCooldown:0,invuln:0,spawnTimer:0,elapsed:0,room:null,ws:null,networkTick:0};
-player.root.position.set(0,0,9);bot.root.position.set(0,0,-9);bot.root.rotation.y=Math.PI;
-const keys=new Set();let pointerLocked=false;const canvas=renderer.domElement;
-window.addEventListener('keydown',e=>{keys.add(e.code);if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();});window.addEventListener('keyup',e=>keys.delete(e.code));
-canvas.addEventListener('click',()=>{if(state.active&&!isTouch())canvas.requestPointerLock?.();fire(player,bot);});document.addEventListener('pointerlockchange',()=>pointerLocked=document.pointerLockElement===canvas);
-window.addEventListener('mousemove',e=>{if(pointerLocked&&state.active)player.root.rotation.y-=e.movementX*.003;});
-function isTouch(){return matchMedia('(pointer:coarse)').matches;}
-function fire(shooter,target,network=false){if(!state.active||shooter.userData.cooldown>0)return;shooter.userData.cooldown=.28;const origin=shooter.muzzle.getWorldPosition(new THREE.Vector3());const aim=target.root.position.clone().add(new THREE.Vector3(0,.7,0));let dir=aim.sub(origin).normalize();if(shooter===player&&!isTouch()&&!pointerLocked){const forward=new THREE.Vector3(0,0,-1).applyQuaternion(shooter.root.quaternion);dir.lerp(forward,.24).normalize();}const mesh=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshBasicMaterial({color:shooter===player?0x71f8ff:0xff7290}));mesh.position.copy(origin);scene.add(mesh);bullets.push({mesh,dir,owner:shooter,target,speed:shooter===player?25:19,life:1.6});if(shooter===player&&state.online&&!network)send({type:'fire',x:origin.x,z:origin.z,dx:dir.x,dz:dir.z});}
-function send(data){if(state.ws?.readyState===WebSocket.OPEN)state.ws.send(JSON.stringify(data));}
-function hit(target,owner){if(target===player){if(state.invuln>0)return;state.hp=Math.max(0,state.hp-20);$('#hp-text').textContent=state.hp;$('#hp-fill').style.width=`${state.hp}%`;$('#game').classList.add('damage-flash');setTimeout(()=>$('#game').classList.remove('damage-flash'),120);if(state.online)send({type:'hit',hp:state.hp});if(state.hp===0)score(bot);}else score(player);}
-function score(winner){if(!state.active)return;if(winner===player)state.playerScore++;else state.botScore++;$('#score-player').textContent=state.playerScore;$('#score-bot').textContent=state.botScore;state.hp=100;state.spawnTimer=1.3;state.invuln=2;state.playerSpeed=state.botSpeed=0;if(state.playerScore>=3||state.botScore>=3){state.active=false;$('#end-title').textContent=state.playerScore>=3?'Victoire !':'Défaite';$('#end-overlay').hidden=false;}else toast(winner===player?'ÉLIMINATION !':'VOTRE VÉHICULE A ÉTÉ DÉTRUIT');}
-function toast(text){const t=$('#toast');t.textContent=text;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,1100);}
-function respawn(){player.root.position.set((Math.random()-.5)*10,0,8);bot.root.position.set((Math.random()-.5)*10,0,-8);player.root.rotation.y=0;bot.root.rotation.y=Math.PI;state.hp=100;$('#hp-text').textContent='100';$('#hp-fill').style.width='100%';}
-function moveActor(actor,dx,dz){const p=actor.root.position;let nx=THREE.MathUtils.clamp(p.x+dx,-half+1.4,half-1.4),nz=THREE.MathUtils.clamp(p.z+dz,-half+1.4,half-1.4);for(const o of walls){if(Math.abs(nx-o.x)<o.hx+.85&&Math.abs(nz-o.z)<o.hz+.85){if(Math.abs(nx-o.x)-o.hx<Math.abs(nz-o.z)-o.hz)nx=p.x;else nz=p.z;}}p.set(nx,0,nz);}
-function updatePlayer(dt){const forward=(keys.has('KeyW')||keys.has('ArrowUp')||keys.has('KeyZ')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0),turn=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')||keys.has('KeyQ')?1:0);state.playerSpeed=THREE.MathUtils.damp(state.playerSpeed,forward*10,forward?5.5:7,dt);player.root.rotation.y-=turn*dt*(3.1+Math.min(Math.abs(state.playerSpeed)*.08,.8));const f=new THREE.Vector3(0,0,-1).applyQuaternion(player.root.quaternion);moveActor(player,f.x*state.playerSpeed*dt,f.z*state.playerSpeed*dt);if(keys.has('Space')||touchFire)fire(player,bot);}
-let touchFire=false;function updateBot(dt){const to=player.root.position.clone().sub(bot.root.position);const distance=to.length();let desired=to.clone().normalize();if(distance<5)desired.negate();const angle=Math.atan2(-desired.x,-desired.z);let delta=THREE.MathUtils.euclideanModulo(angle-bot.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;bot.root.rotation.y+=THREE.MathUtils.clamp(delta,-2.1*dt,2.1*dt);const forward=new THREE.Vector3(0,0,-1).applyQuaternion(bot.root.quaternion);const drive=distance>7?1:distance<4?-.45:.32;state.botSpeed=THREE.MathUtils.damp(state.botSpeed,drive*5,2.8,dt);moveActor(bot,forward.x*state.botSpeed*dt,forward.z*state.botSpeed*dt);if(distance<22){bot.userData.cooldown=Math.max(0,(bot.userData.cooldown||0)-dt);if(bot.userData.cooldown<=0){fire(bot,player);bot.userData.cooldown=.7+Math.random()*.5;}}}
-function updateBullets(dt){for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.mesh.position.addScaledVector(b.dir,b.speed*dt);b.life-=dt;let remove=b.life<=0||Math.abs(b.mesh.position.x)>half||Math.abs(b.mesh.position.z)>half;for(const o of walls)if(Math.abs(b.mesh.position.x-o.x)<o.hx+.15&&Math.abs(b.mesh.position.z-o.z)<o.hz+.15){remove=true;break;}if(b.mesh.position.distanceTo(b.target.root.position.clone().add(new THREE.Vector3(0,.7,0)))<.85){hit(b.target,b.owner);remove=true;}if(remove){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose();bullets.splice(i,1);}}}
-const camTarget=new THREE.Vector3(),camPos=new THREE.Vector3();function updateCamera(dt){const forward=new THREE.Vector3(0,0,-1).applyQuaternion(player.root.quaternion);camTarget.copy(player.root.position).add(new THREE.Vector3(0,1.1,0));const desired=player.root.position.clone().addScaledVector(forward,-8).add(new THREE.Vector3(0,5.4,0));camPos.lerp(desired,1-Math.exp(-5*dt));camera.position.copy(camPos);const look=player.root.position.clone().addScaledVector(forward,3).add(new THREE.Vector3(0,1.2,0));camera.lookAt(look);}
-function updateAim(){const v=bot.root.position.clone().project(camera);const marker=$('#aim-marker');marker.style.left=`${(v.x*.5+.5)*100}%`;marker.style.top=`${(-v.y*.5+.5)*100}%`;marker.hidden=!state.active;}
-function resize(){const w=$('#game').clientWidth,h=$('#game').clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}new ResizeObserver(resize).observe($('#game'));resize();
-function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);if(state.active){state.elapsed+=dt;state.fireCooldown=Math.max(0,state.fireCooldown-dt);state.invuln=Math.max(0,state.invuln-dt);if(state.spawnTimer>0){state.spawnTimer-=dt;if(state.spawnTimer<=0)respawn();}else{if(!state.online)updateBot(dt);updatePlayer(dt);updateBullets(dt);if(state.online&&++state.networkTick%3===0)send({type:'state',x:player.root.position.x,z:player.root.position.z,rotation:player.root.rotation.y,hp:state.hp});}updateCamera(dt);updateAim();}renderer.render(scene,camera);}animate();
-function setMode(online){state.online=online;$('#net-status').textContent=online?'SALLE LAN':'MODE BOT';$('#opponent-label').textContent=online?'AMI':'BOT';$('#match-info').textContent=`ARÈNE NÉON · ${online?'AMI':'BOT'}`;}
-function begin(online=false){setMode(online);$('#start-overlay').hidden=true;$('#room-panel').hidden=true;state.active=true;state.playerScore=state.botScore=0;$('#score-player').textContent=$('#score-bot').textContent='0';$('#end-overlay').hidden=true;respawn();}
-$('#start-bot').onclick=()=>begin(false);$('#play-again').onclick=()=>{state.online=false;begin(false);};$('#menu-btn').onclick=()=>$('#start-overlay').hidden=false;
-$('#open-room').onclick=()=>$('#room-panel').hidden=false;$('#close-room').onclick=()=>$('#room-panel').hidden=true;
-function connectRoom(create){const address=$('#server-address').value.trim()||`${location.protocol}//${location.hostname}:3000`;const code=$('#room-code').value.trim().toUpperCase();const msg=$('#room-message');if(!code){msg.textContent='Saisis un code de salle de 5 caractères.';return;}const wsUrl=address.replace(/^http/,'ws')+'/ws';try{const ws=new WebSocket(wsUrl);state.ws=ws;msg.textContent='Connexion au serveur…';ws.onopen=()=>{ws.send(JSON.stringify({type:create?'create':'join',code}));};ws.onmessage=e=>{const data=JSON.parse(e.data);if(data.type==='ready'){state.room=code;begin(true);msg.textContent='Salle connectée.';}else if(data.type==='state'){bot.root.position.set(data.x,0,data.z);bot.root.rotation.y=data.rotation;if(Number.isFinite(data.hp)){state.hp=data.hp;$('#hp-text').textContent=state.hp;$('#hp-fill').style.width=`${state.hp}%`;}}else if(data.type==='fire'){const origin=new THREE.Vector3(data.x,.8,data.z);const dir=new THREE.Vector3(data.dx,0,data.dz).normalize();const mesh=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),new THREE.MeshBasicMaterial({color:0xff7290}));mesh.position.copy(origin);scene.add(mesh);bullets.push({mesh,dir,owner:bot,target:player,speed:25,life:1.6});}else if(data.type==='error'){msg.textContent=data.message;}};ws.onerror=()=>msg.textContent='Connexion impossible. Vérifie le serveur et son adresse.';ws.onclose=()=>{if(state.online){state.active=false;toast('CONNEXION PERDUE');$('#start-overlay').hidden=false;}};}catch{msg.textContent='Adresse de serveur invalide.';}}
-$('#create-room').onclick=()=>connectRoom(true);$('#join-room').onclick=()=>connectRoom(false);
-const pad=$('#touch-pad');let padId=null;pad.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture(e.pointerId);});pad.addEventListener('pointermove',e=>{if(e.pointerId!==padId)return;const r=pad.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);keys.delete('KeyW');keys.delete('KeyS');keys.delete('KeyA');keys.delete('KeyD');if(Math.abs(dy)>12)keys.add(dy<0?'KeyW':'KeyS');if(Math.abs(dx)>12)keys.add(dx>0?'KeyD':'KeyA');});function resetPad(){padId=null;for(const k of ['KeyW','KeyS','KeyA','KeyD'])keys.delete(k);}pad.addEventListener('pointerup',resetPad);pad.addEventListener('pointercancel',resetPad);$('#touch-fire').addEventListener('pointerdown',e=>{e.preventDefault();touchFire=true;});for(const ev of ['pointerup','pointercancel','pointerleave'])$('#touch-fire').addEventListener(ev,()=>touchFire=false);$('#touch-boost').onclick=()=>{state.playerSpeed=Math.sign(state.playerSpeed||1)*16;};
+const $ = (selector) => document.querySelector(selector);
+const viewport = $('#viewport');
+const loading = $('#loading-message');
+const statusLabel = $('#game-status');
+const isTouch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+if (isTouch) $('#touch-controls').classList.add('visible');
+
+let renderer, scene, camera, clock;
+let player, bot, arenaGroup;
+let running = false;
+let gameMode = 'bot';
+let playerScore = 0, botScore = 0;
+let playerHealth = 100, botHealth = 100;
+let keys = new Set();
+let touchMove = { x: 0, z: 0, firing: false };
+let lastShot = 0;
+let projectiles = [];
+let animationFrame = 0;
+let roomSocket = null;
+let roomCode = '';
+let reconnectTimer = 0;
+const ARENA = 15;
+const PLAYER_SPEED = 7.5;
+const BOT_SPEED = 5.2;
+const clamp = THREE.MathUtils.clamp;
+
+function vehicle(color, accent) {
+  const root = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.34, metalness: 0.32 });
+  const trim = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.25, metalness: 0.55, emissive: accent, emissiveIntensity: 0.18 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.58, 2.25), paint);
+  body.position.y = 0.58; body.castShadow = true; root.add(body);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.2, 0.92), trim);
+  hood.position.set(0, 0.88, -0.38); hood.castShadow = true; root.add(hood);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.48, 0.86), new THREE.MeshStandardMaterial({ color: 0x16354b, roughness: 0.17, metalness: 0.42, transparent: true, opacity: 0.9 }));
+  cabin.position.set(0, 0.96, 0.28); cabin.castShadow = true; root.add(cabin);
+  for (const x of [-0.58, 0.58]) for (const z of [-0.72, 0.72]) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.22, 12), dark);
+    wheel.rotation.z = Math.PI / 2; wheel.position.set(x, 0.36, z); wheel.castShadow = true; root.add(wheel);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.235, 10), trim);
+    hub.rotation.z = Math.PI / 2; hub.position.set(x * 1.02, 0.36, z); root.add(hub);
+  }
+  for (const x of [-0.48, 0.48]) {
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.12, 0.08), new THREE.MeshBasicMaterial({ color: 0xbdf7ff }));
+    lamp.position.set(x, 0.64, -1.14); root.add(lamp);
+  }
+  const gun = new THREE.Group(); gun.position.set(0, 0.96, -0.15); root.add(gun);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.2, 12), trim); base.castShadow = true; gun.add(base);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 12), dark); barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.48; barrel.castShadow = true; gun.add(barrel);
+  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.12, 12), trim); muzzle.rotation.x = Math.PI / 2; muzzle.position.z = -0.94; gun.add(muzzle);
+  root.userData.gun = gun;
+  root.userData.velocity = new THREE.Vector3();
+  root.userData.lastDirection = new THREE.Vector3(0, 0, -1);
+  root.userData.health = 100;
+  return root;
+}
+
+function addBox(parent, x, z, sx, sy, sz, color, opts = {}) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), new THREE.MeshStandardMaterial({ color, roughness: opts.roughness ?? 0.75, metalness: opts.metalness ?? 0.08 }));
+  mesh.position.set(x, sy / 2, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh);
+  if (opts.glow) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(sx * 0.82, 0.08, 0.03), new THREE.MeshBasicMaterial({ color: opts.glow }));
+    strip.position.set(x, sy * 0.66, z - sz / 2 - 0.025); parent.add(strip);
+  }
+  return mesh;
+}
+
+function init3D() {
+  loading.classList.remove('hidden');
+  try {
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x09121e); scene.fog = new THREE.Fog(0x09121e, 24, 58);
+    camera = new THREE.PerspectiveCamera(62, 1, 0.1, 120);
+    renderer = new THREE.WebGLRenderer({ antialias: !isTouch, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
+    renderer.shadowMap.enabled = !isTouch; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+    viewport.replaceChildren(renderer.domElement);
+    scene.add(new THREE.HemisphereLight(0x9acbff, 0x17202d, 2.1));
+    const keyLight = new THREE.DirectionalLight(0xffe2bd, 3.1); keyLight.position.set(-8, 18, -6); keyLight.castShadow = !isTouch; keyLight.shadow.mapSize.set(1024, 1024); scene.add(keyLight);
+    const rimLight = new THREE.PointLight(0x16d9ff, 36, 32); rimLight.position.set(10, 6, 8); scene.add(rimLight);
+    arenaGroup = new THREE.Group(); scene.add(arenaGroup);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), new THREE.MeshStandardMaterial({ color: 0x182536, roughness: 0.83, metalness: 0.16 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; arenaGroup.add(floor);
+    const grid = new THREE.GridHelper(36, 36, 0x1bcdf4, 0x26384c); grid.position.y = 0.012; arenaGroup.add(grid);
+    for (let i = 0; i < 4; i++) {
+      const half = ARENA;
+      if (i < 2) addBox(arenaGroup, i === 0 ? -half : half, 0, 0.7, 2.7, 31, 0x263b50, { glow: 0x20d9ff });
+      else addBox(arenaGroup, 0, i === 2 ? -half : half, 31, 2.7, 0.7, 0x263b50, { glow: 0x20d9ff });
+    }
+    addBox(arenaGroup, -5, 0, 1.2, 1.3, 7, 0x35485c, { glow: 0xffa23a });
+    addBox(arenaGroup, 5, 0, 1.2, 1.3, 7, 0x35485c, { glow: 0xffa23a });
+    addBox(arenaGroup, 0, -5, 7, 1.25, 1.2, 0x35485c, { glow: 0xa35cff });
+    addBox(arenaGroup, 0, 5, 7, 1.25, 1.2, 0x35485c, { glow: 0x20d9ff });
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4;
+      const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.32, 2.6, 8), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x1ad6ff : 0xff5f80, emissive: i % 2 ? 0x087b9e : 0x8c1836, emissiveIntensity: 0.8, metalness: 0.55 }));
+      pylon.position.set(Math.cos(angle) * 13, 1.3, Math.sin(angle) * 13); pylon.castShadow = true; arenaGroup.add(pylon);
+    }
+    player = vehicle(0x19c9f4, 0x83f1ff); player.position.set(-7, 0, 0); scene.add(player);
+    bot = vehicle(0xff526c, 0xffb350); bot.position.set(7, 0, 0); scene.add(bot);
+    clock = new THREE.Clock(); resizeRenderer(); loading.classList.add('hidden');
+    if (!animationFrame) animate();
+  } catch (error) {
+    console.error('Échec initialisation 3D :', error);
+    loading.textContent = 'La 3D ne peut pas démarrer. Essaie un navigateur récent avec l’accélération matérielle activée.';
+  }
+}
+
+function resizeRenderer() {
+  if (!renderer || !camera) return;
+  const width = Math.max(1, viewport.clientWidth), height = Math.max(1, viewport.clientHeight);
+  camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height, false);
+}
+window.addEventListener('resize', resizeRenderer);
+
+function resetRound() {
+  playerHealth = botHealth = 100;
+  player.position.set(-7, 0, 0); bot.position.set(7, 0, 0);
+  player.rotation.y = Math.PI / 2; bot.rotation.y = -Math.PI / 2;
+  player.userData.velocity.set(0, 0, 0); bot.userData.velocity.set(0, 0, 0);
+  for (const p of projectiles) { scene.remove(p.mesh); }
+  projectiles = [];
+  updateHud();
+}
+function updateHud() {
+  $('#player-health').style.width = `${playerHealth}%`; $('#bot-health').style.width = `${botHealth}%`;
+  $('#player-score').textContent = playerScore; $('#bot-score').textContent = botScore;
+}
+function startGame() {
+  if (!renderer) init3D();
+  if (!player || !bot) return;
+  running = true; playerScore = 0; botScore = 0; resetRound();
+  $('#game-message').classList.add('hidden');
+  statusLabel.textContent = gameMode === 'bot' ? 'COMBAT • CONTRE LE BOT' : `SALLE ${roomCode || ''} • EN ATTENTE DU JOUEUR`;
+  if (gameMode === 'lan') connectRoom();
+  viewport.focus?.();
+}
+
+function moveEntity(entity, direction, speed, dt) {
+  const velocity = entity.userData.velocity;
+  const desired = direction.clone();
+  if (desired.lengthSq() > 1) desired.normalize();
+  const accel = desired.lengthSq() ? 30 : 21;
+  velocity.x += (desired.x * speed - velocity.x) * (1 - Math.exp(-accel * dt));
+  velocity.z += (desired.z * speed - velocity.z) * (1 - Math.exp(-accel * dt));
+  entity.position.x += velocity.x * dt; entity.position.z += velocity.z * dt;
+  entity.position.x = clamp(entity.position.x, -ARENA + 1.25, ARENA - 1.25);
+  entity.position.z = clamp(entity.position.z, -ARENA + 1.25, ARENA - 1.25);
+  const desiredFacing = desired.lengthSq() > 0.02 ? Math.atan2(-desired.x, -desired.z) : null;
+  if (desiredFacing !== null) {
+    let diff = desiredFacing - entity.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    entity.rotation.y += diff * (1 - Math.exp(-10 * dt));
+    entity.userData.lastDirection.set(-Math.sin(entity.rotation.y), 0, -Math.cos(entity.rotation.y));
+  }
+}
+
+function clearLineOfSight(from, to) {
+  const obstacles = [arenaGroup.children.find(o => o.geometry?.type === 'BoxGeometry' && Math.abs(o.position.x + 5) < .01), ...arenaGroup.children].filter(Boolean);
+  const ray = new THREE.Raycaster(from.clone().add(new THREE.Vector3(0, .7, 0)), to.clone().sub(from), 0, from.distanceTo(to));
+  return ray.intersectObjects(obstacles, false).length === 0;
+}
+function shoot(shooter, target, isPlayer) {
+  const now = performance.now();
+  if (now - (shooter.userData.lastShot || 0) < (isPlayer ? 360 : 640)) return;
+  shooter.userData.lastShot = now;
+  const direction = target ? target.position.clone().sub(shooter.position) : shooter.userData.lastDirection.clone();
+  direction.y = 0;
+  if (direction.lengthSq() < 0.001) return;
+  direction.normalize();
+  shooter.userData.gun.rotation.y = Math.atan2(-direction.x, -direction.z) - shooter.rotation.y;
+  const color = isPlayer ? 0x68f2ff : 0xff7183;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), new THREE.MeshBasicMaterial({ color }));
+  mesh.position.copy(shooter.position).add(new THREE.Vector3(0, 0.95, 0)).addScaledVector(direction, 1.15);
+  scene.add(mesh);
+  projectiles.push({ mesh, velocity: direction.multiplyScalar(isPlayer ? 19 : 15), owner: shooter, damage: 18, life: 2.2 });
+}
+function botInput(dt) {
+  const delta = player.position.clone().sub(bot.position); delta.y = 0;
+  const distance = delta.length();
+  const direction = delta.normalize();
+  let move = new THREE.Vector3();
+  if (distance > 7) move.copy(direction);
+  else if (distance < 4.5) move.copy(direction).negate();
+  else move.set(-direction.z * Math.sin(performance.now() / 1100), 0, direction.x * Math.sin(performance.now() / 1100));
+  if (distance > 0.001) {
+    const aim = Math.atan2(-direction.x, -direction.z); let diff = aim - bot.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); bot.rotation.y += diff * (1 - Math.exp(-5 * dt));
+    bot.userData.lastDirection.set(-Math.sin(bot.rotation.y), 0, -Math.cos(bot.rotation.y));
+    if (distance < 14) shoot(bot, player, false);
+  }
+  return move;
+}
+function tickProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i]; p.life -= dt; p.mesh.position.addScaledVector(p.velocity, dt);
+    const target = p.owner === player ? bot : player;
+    let hit = p.mesh.position.distanceTo(new THREE.Vector3(target.position.x, 0.8, target.position.z)) < 1.0;
+    if (!hit && (Math.abs(p.mesh.position.x) > ARENA || Math.abs(p.mesh.position.z) > ARENA)) p.life = 0;
+    if (hit && running) {
+      if (target === player) playerHealth = Math.max(0, playerHealth - p.damage); else botHealth = Math.max(0, botHealth - p.damage);
+      target.userData.velocity.addScaledVector(p.velocity, 0.22); p.life = 0; updateHud();
+      if (target === player && playerHealth <= 0) endRound(false);
+      if (target === bot && botHealth <= 0) endRound(true);
+    }
+    if (p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); }
+  }
+}
+function endRound(playerWon) {
+  if (!running) return;
+  running = false;
+  if (playerWon) playerScore++; else botScore++;
+  updateHud();
+  const winner = playerScore >= 3 || botScore >= 3;
+  const message = $('#game-message'); message.textContent = winner ? (playerScore >= 3 ? 'VICTOIRE !' : 'LE BOT GAGNE') : (playerWon ? 'ÉLIMINATION !' : 'VÉHICULE DÉTRUIT'); message.classList.remove('hidden');
+  statusLabel.textContent = winner ? 'MATCH TERMINÉ' : 'MANCHE TERMINÉE • RELANCE POUR CONTINUER';
+  if (!winner) window.setTimeout(() => { if (!running) { resetRound(); running = true; statusLabel.textContent = gameMode === 'bot' ? 'NOUVELLE MANCHE • CONTRE LE BOT' : `SALLE ${roomCode} • NOUVELLE MANCHE`; message.classList.add('hidden'); } }, 1500);
+}
+function resolveObstacleCollision(entity) {
+  const obstacles = arenaGroup.children.filter(o => o.geometry?.type === 'BoxGeometry' && o.geometry.parameters?.height > 0.5);
+  for (const box of obstacles) {
+    const { width, depth } = box.geometry.parameters;
+    const minX = box.position.x - width / 2 - .7, maxX = box.position.x + width / 2 + .7;
+    const minZ = box.position.z - depth / 2 - .7, maxZ = box.position.z + depth / 2 + .7;
+    if (entity.position.x > minX && entity.position.x < maxX && entity.position.z > minZ && entity.position.z < maxZ) {
+      const exits = [entity.position.x - minX, maxX - entity.position.x, entity.position.z - minZ, maxZ - entity.position.z];
+      const nearest = exits.indexOf(Math.min(...exits));
+      if (nearest === 0) entity.position.x = minX; else if (nearest === 1) entity.position.x = maxX; else if (nearest === 2) entity.position.z = minZ; else entity.position.z = maxZ;
+      entity.userData.velocity.multiplyScalar(0.45);
+    }
+  }
+}
+function animate() {
+  animationFrame = requestAnimationFrame(animate);
+  if (!renderer || !scene || !camera || !player || !bot) return;
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (running) {
+    let direction = new THREE.Vector3((keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('q') || keys.has('arrowleft') ? 1 : 0), 0, (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('z') || keys.has('arrowup') ? 1 : 0));
+    direction.add(new THREE.Vector3(touchMove.x, 0, touchMove.z));
+    moveEntity(player, direction, PLAYER_SPEED, dt);
+    if (keys.has(' ') || touchMove.firing) shoot(player, bot, true);
+    if (gameMode === 'bot') moveEntity(bot, botInput(dt), BOT_SPEED, dt);
+    resolveObstacleCollision(player); resolveObstacleCollision(bot);
+    tickProjectiles(dt);
+  }
+  const target = player.position.clone();
+  const behind = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+  const desiredCamera = target.clone().addScaledVector(behind, 8.8).add(new THREE.Vector3(0, 6.2, 0));
+  camera.position.lerp(desiredCamera, 1 - Math.exp(-4.2 * dt));
+  camera.lookAt(target.clone().add(new THREE.Vector3(0, 1.1, 0)));
+  if (arenaGroup) arenaGroup.rotation.y += dt * 0.012;
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) event.preventDefault();
+  keys.add(key);
+});
+window.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
+window.addEventListener('blur', () => keys.clear());
+
+$('#play-button').addEventListener('click', startGame);
+document.querySelectorAll('.mode-tab').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.toggle('active', tab === button));
+  gameMode = button.dataset.mode;
+  $('#bot-options').classList.toggle('hidden', gameMode !== 'bot');
+  $('#lan-options').classList.toggle('hidden', gameMode !== 'lan');
+  $('#play-button').classList.toggle('hidden', gameMode === 'lan');
+  $('#enemy-label').textContent = gameMode === 'bot' ? 'BLINDAGE BOT' : 'BLINDAGE ADVERSAIRE';
+}));
+$('#sound-toggle').addEventListener('click', e => { e.currentTarget.classList.toggle('muted'); });
+
+const joystick = $('#joystick'), knob = $('#joystick-knob');
+let joystickPointer = null;
+joystick.addEventListener('pointerdown', event => { joystickPointer = event.pointerId; joystick.setPointerCapture(event.pointerId); updateJoystick(event); });
+joystick.addEventListener('pointermove', event => { if (event.pointerId === joystickPointer) updateJoystick(event); });
+function updateJoystick(event) {
+  const rect = joystick.getBoundingClientRect(), radius = rect.width * 0.34;
+  const dx = event.clientX - (rect.left + rect.width / 2), dy = event.clientY - (rect.top + rect.height / 2);
+  const length = Math.min(radius, Math.hypot(dx, dy)), angle = Math.atan2(dy, dx);
+  const x = Math.cos(angle) * length, y = Math.sin(angle) * length;
+  knob.style.transform = `translate(${x}px, ${y}px)`; touchMove.x = x / radius; touchMove.z = y / radius;
+}
+function releaseJoystick(event) { if (event.pointerId !== joystickPointer) return; joystickPointer = null; touchMove.x = touchMove.z = 0; knob.style.transform = 'translate(0, 0)'; }
+joystick.addEventListener('pointerup', releaseJoystick); joystick.addEventListener('pointercancel', releaseJoystick);
+const fireButton = $('#fire-button');
+fireButton.addEventListener('pointerdown', e => { e.preventDefault(); touchMove.firing = true; fireButton.setPointerCapture(e.pointerId); });
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fireButton.addEventListener(name, () => touchMove.firing = false);
+
+function setLanHint(text) { $('#lan-hint').textContent = text; }
+function connectRoom() {
+  if (roomSocket?.readyState === WebSocket.OPEN) return;
+  const socketUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
+  roomSocket = new WebSocket(socketUrl);
+  roomSocket.onopen = () => {
+    clearTimeout(reconnectTimer);
+    roomSocket.send(JSON.stringify({ type: 'join', code: roomCode }));
+    setLanHint(`Connexion au salon ${roomCode}…`);
+  };
+  roomSocket.onmessage = event => {
+    let packet; try { packet = JSON.parse(event.data); } catch { return; }
+    if (packet.type === 'room') { roomCode = packet.code; setLanHint(`Salon ${roomCode} • partage le lien de la page au même réseau Wi-Fi.`); }
+    if (packet.type === 'state' && packet.state?.player) {
+      const remote = packet.state.player;
+      if (gameMode === 'lan' && bot) { bot.position.set(remote.x || 0, 0, remote.z || 0); bot.rotation.y = remote.yaw || 0; }
+    }
+    if (packet.type === 'error') setLanHint(packet.message || 'Connexion au salon impossible.');
+  };
+  roomSocket.onclose = () => { if (running && gameMode === 'lan') reconnectTimer = window.setTimeout(connectRoom, 1800); };
+  roomSocket.onerror = () => setLanHint('Serveur local inaccessible. Ouvre le jeu via le lien affiché par le PC hôte.');
+}
+function sendRoomState() {
+  if (gameMode !== 'lan' || roomSocket?.readyState !== WebSocket.OPEN || !player) return;
+  roomSocket.send(JSON.stringify({ type: 'state', code: roomCode, player: { x: player.position.x, z: player.position.z, yaw: player.rotation.y, health: playerHealth, score: playerScore } }));
+}
+window.setInterval(sendRoomState, 50);
+$('#create-room').addEventListener('click', () => {
+  roomCode = Math.random().toString(36).slice(2, 7).toUpperCase();
+  $('#room-code').value = roomCode;
+  gameMode = 'lan'; init3D(); startGame();
+  const shareUrl = `${location.origin}${location.pathname}?room=${roomCode}`;
+  const box = $('#share-box'); box.classList.remove('hidden');
+  const link = document.createElement('a'); link.href = shareUrl; link.textContent = shareUrl; link.target = '_blank'; link.rel = 'noopener';
+  const qr = document.createElement('img'); qr.alt = 'QR code pour rejoindre cette partie'; qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`;
+  box.replaceChildren(qr, link);
+  connectRoom();
+});
+$('#join-room').addEventListener('click', () => {
+  roomCode = $('#room-code').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{5}$/.test(roomCode)) { setLanHint('Entre un code de salon valide à 5 caractères.'); return; }
+  gameMode = 'lan'; startGame(); connectRoom();
+});
+const urlRoom = new URLSearchParams(location.search).get('room');
+if (urlRoom && /^[A-Z0-9]{5}$/i.test(urlRoom)) { gameMode = 'lan'; $('#room-code').value = urlRoom.toUpperCase(); document.querySelector('[data-mode="lan"]').click(); }
+
+init3D();

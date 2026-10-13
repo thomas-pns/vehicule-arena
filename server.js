@@ -1,10 +1,60 @@
+import express from 'express';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, resolve, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
-const root=resolve('dist'),rooms=new Map();
-const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost');if(url.pathname==='/health'){res.writeHead(200);return res.end('ok');}const pathname=decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname);const file=resolve(root,`.${pathname}`);if(file!==root&&!file.startsWith(root+sep)){res.writeHead(403);return res.end('Forbidden');}try{const data=await readFile(file);const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'};res.writeHead(200,{'content-type':types[extname(file)]||'application/octet-stream'});res.end(data);}catch{try{res.writeHead(200,{'content-type':'text/html'});res.end(await readFile(resolve(root,'index.html')));}catch{res.writeHead(503);res.end('Build the client first: npm run build');}}});
-const wss=new WebSocketServer({noServer:true});server.on('upgrade',(req,socket,head)=>{if(new URL(req.url,'http://localhost').pathname!=='/ws')return socket.destroy();wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));});
-const send=(ws,v)=>{if(ws.readyState===1)ws.send(JSON.stringify(v));};function leave(ws){const r=ws.room;if(!r)return;r.players.delete(ws);ws.room=null;if(!r.players.size)rooms.delete(r.code);else for(const p of r.players)send(p,{type:'opponent-left'});}
-wss.on('connection',ws=>{ws.on('message',raw=>{let m;try{m=JSON.parse(raw.toString());}catch{return send(ws,{type:'error',message:'Message invalide.'});}if(m.type==='create'||m.type==='join'){const code=String(m.code||'').toUpperCase();if(!/^[A-Z0-9]{5}$/.test(code))return send(ws,{type:'error',message:'Le code doit contenir 5 caractères.'});let r=rooms.get(code);if(m.type==='create'){if(r)return send(ws,{type:'error',message:'Code déjà utilisé.'});r={code,players:new Set()};rooms.set(code,r);}else if(!r)return send(ws,{type:'error',message:'Salle introuvable.'});if(r.players.size>=2)return send(ws,{type:'error',message:'Salle complète.'});r.players.add(ws);ws.room=r;send(ws,{type:'ready',code,player:r.players.size});if(r.players.size===2)for(const p of r.players)send(p,{type:'start'});return;}if(!ws.room)return send(ws,{type:'error',message:'Pas encore dans une salle.'});for(const p of ws.room.players)if(p!==ws&&['state','fire','hit','score'].includes(m.type))send(p,{...m,player:[...ws.room.players].indexOf(ws)+1});});ws.on('close',()=>leave(ws));ws.on('error',()=>leave(ws));});
-const port=Number(process.env.PORT||3000);server.listen(port,'0.0.0.0',()=>console.log(`Véhicule Arena : http://localhost:${port} (LAN)`));
+import { networkInterfaces } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const server = createServer(app);
+const wss = new WebSocketServer({ server });
+const rooms = new Map();
+const clients = new Map();
+app.disable('x-powered-by');
+app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/lan', (_req, res) => {
+  const urls = [];
+  for (const addresses of Object.values(networkInterfaces())) for (const address of addresses || []) {
+    if (address.family === 'IPv4' && !address.internal) urls.push(`http://${address.address}:${port}`);
+  }
+  res.json({ urls });
+});
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+wss.on('connection', socket => {
+  clients.set(socket, { room: null, playerId: Math.random().toString(36).slice(2, 8) });
+  socket.on('message', raw => {
+    if (raw.length > 8192) return socket.close(1009, 'Message too large');
+    let data; try { data = JSON.parse(raw.toString()); } catch { return; }
+    const client = clients.get(socket); if (!client) return;
+    if (data.type === 'create' || data.type === 'join') {
+      const code = String(data.code || '').toUpperCase();
+      if (!/^[A-Z0-9]{5}$/.test(code)) return socket.send(JSON.stringify({ type: 'error', message: 'Code invalide.' }));
+      let room = rooms.get(code);
+      if (!room && data.type === 'join') return socket.send(JSON.stringify({ type: 'error', message: 'Ce salon n’existe pas. Crée-le sur le PC hôte.' }));
+      if (!room) { room = new Set(); rooms.set(code, room); }
+      if (room.size >= 2) return socket.send(JSON.stringify({ type: 'error', message: 'Ce salon est complet.' }));
+      client.room = code; room.add(socket);
+      socket.send(JSON.stringify({ type: 'room', code, player: room.size, count: room.size }));
+      for (const peer of room) if (peer !== socket) peer.send(JSON.stringify({ type: 'peer', connected: true, count: room.size }));
+      return;
+    }
+    if (data.type === 'state' && client.room) {
+      const room = rooms.get(client.room); if (!room) return;
+      const state = { type: 'state', player: data.player, playerId: client.playerId };
+      for (const peer of room) if (peer !== socket && peer.readyState === 1) peer.send(JSON.stringify(state));
+    }
+  });
+  socket.on('close', () => {
+    const client = clients.get(socket); if (!client) return;
+    const room = rooms.get(client.room);
+    if (room) { room.delete(socket); for (const peer of room) if (peer.readyState === 1) peer.send(JSON.stringify({ type: 'peer', connected: false, count: room.size })); if (room.size === 0) rooms.delete(client.room); }
+    clients.delete(socket);
+  });
+});
+const port = Number(process.env.PORT || 3000);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Véhicule Arena : http://localhost:${port}`);
+  for (const addresses of Object.values(networkInterfaces())) for (const address of addresses || []) if (address.family === 'IPv4' && !address.internal) console.log(`Réseau local : http://${address.address}:${port}`);
+});
