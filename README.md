@@ -1,38 +1,49 @@
 # Véhicule Arena
 
-Prototype de jeu d'arène 3D arcade, créé dans un nouveau dépôt. Ce premier jalon propose un duel jouable contre un bot : caméra troisième personne derrière et au-dessus du véhicule, déplacement libre, tirs, dégâts, éliminations, score, réapparition et trois configurations d'arène. Une interface tactile de déplacement et de tir est incluse.
+Prototype 3D de combat de véhicules : mode bot et salles amicales sur réseau local.
 
-## Lancer en local
+## Prérequis
 
-Prérequis : Node.js 20 LTS ou supérieur.
+- Node.js LTS (Node 20 ou 22)
+- npm
 
-```bash
+## Installation et lancement sous Windows
+
+Depuis PowerShell, dans le dossier du dépôt :
+
+```powershell
 npm install
+npm start
+```
+
+`npm start` construit le client puis démarre le serveur HTTP et WebSocket. Le jeu est servi à l'adresse `http://localhost:3000` (sauf indication différente affichée par le serveur). Pour lancer uniquement le serveur après avoir construit le client : `npm run server`.
+
+Si npm indique qu'il manque `ws`, vérifiez que vous êtes sur la branche `feature/core-gameplay-lan`, puis récupérez les dernières modifications et réinstallez les dépendances :
+
+```powershell
+git pull
+npm install
+npm start
+```
+
+## Jouer avec un ami sur le même réseau Wi-Fi/LAN
+
+1. Lancez le serveur sur le PC hôte avec `npm start`.
+2. Autorisez Node.js sur les réseaux privés dans la fenêtre du pare-feu Windows (ou créez une règle entrante pour le port 3000).
+3. Trouvez l'adresse IPv4 du PC hôte avec `ipconfig`.
+4. Sur l'autre appareil du même réseau, ouvrez `http://ADRESSE_IPV4_DU_PC:3000`.
+5. Créez ou rejoignez une salle depuis le menu du jeu.
+
+Les appareils doivent être sur le même réseau local. Les connexions entre réseaux différents et l'hébergement public ne sont pas pris en charge à ce stade.
+
+## Développement
+
+```powershell
 npm run dev
 ```
 
-Vite affiche une adresse locale. Pour un téléphone ou un autre ordinateur sur le même Wi-Fi, ouvrez `http://IP_DU_PC:5173` depuis l'appareil. Autorisez Node.js/Vite dans le pare-feu Windows si nécessaire.
-
-Build :
-
-```bash
-npm run build
-```
-
-## Commandes provisoires
-
-- ZQSD, WASD ou flèches : déplacement libre.
-- Clic maintenu ou Espace : tirer vers le dernier adversaire visé.
-- Mobile : joystick de déplacement et bouton FIRE ; le tir vise automatiquement l'adversaire.
-
-La visée à la souris et la visée tactile manuelle ne sont pas encore disponibles. Le tir vise automatiquement l'adversaire dans ce jalon.
+Vite lance le client en mode développement. Les parties LAN nécessitent également le serveur (`npm run server`) ; utilisez l'adresse/port du serveur configurés par l'application.
 
 ## État du prototype
 
-Le mode contre un bot est implémenté côté client. Trois arènes sont sélectionnables avant la partie. Le combat continue avec score et réapparitions. Le mode salle réseau n'est pas encore implémenté : son bouton est volontairement désactivé. La prochaine étape sera d'ajouter un serveur local lancé sur le PC hôte, rejoignable sur le réseau local. Il n'y a pas encore d'hébergement public, de classement, de bonus ou de comptes.
-
-## Stack et ressources
-
-- Three.js pour le rendu 3D, Vite pour le serveur de développement et le build.
-- Véhicules, arènes, matériaux, éclairage et effets sont générés par le code ; aucune image ou son tiers embarqué.
-- La police de l'interface est chargée via Google Fonts (Barlow Condensed et Inter), avec polices système de secours.
+Le jeu et le mode LAN sont en cours de développement. Le relais réseau doit encore être vérifié avec deux appareils avant d'être considéré comme validé de bout en bout.
