@@ -35,11 +35,14 @@ let playerScore = 0, botScore = 0;
 let playerHealth = 100, botHealth = 100;
 let keys = new Set();
 let touchMove = { x: 0, z: 0, firing: false };
-let lastShot = 0;
 let projectiles = [];
 let animationFrame = 0;
 let roomSocket = null;
 let roomCode = '';
+let roomRole = 0;
+let remotePlayer = null;
+let remoteHealth = 100;
+let lastRemoteShot = 0;
 let reconnectTimer = 0;
 const ARENA = 15;
 const PLAYER_SPEED = 7.5;
@@ -127,7 +130,6 @@ function init3D() {
     loading.textContent = 'La 3D ne peut pas démarrer. Essaie un navigateur récent avec l’accélération matérielle activée.';
   }
 }
-
 function resizeRenderer() {
   if (!renderer || !camera) return;
   const width = Math.max(1, viewport.clientWidth), height = Math.max(1, viewport.clientHeight);
@@ -157,202 +159,126 @@ function startGame() {
   if (gameMode === 'lan') connectRoom();
   viewport.focus?.();
 }
-
 function moveEntity(entity, direction, speed, dt) {
   const velocity = entity.userData.velocity;
-  const desired = direction.clone();
-  if (desired.lengthSq() > 1) desired.normalize();
+  const desired = direction.clone(); if (desired.lengthSq() > 1) desired.normalize();
   const accel = desired.lengthSq() ? 30 : 21;
   velocity.x += (desired.x * speed - velocity.x) * (1 - Math.exp(-accel * dt));
   velocity.z += (desired.z * speed - velocity.z) * (1 - Math.exp(-accel * dt));
   entity.position.x += velocity.x * dt; entity.position.z += velocity.z * dt;
-  entity.position.x = clamp(entity.position.x, -ARENA + 1.25, ARENA - 1.25);
-  entity.position.z = clamp(entity.position.z, -ARENA + 1.25, ARENA - 1.25);
+  entity.position.x = clamp(entity.position.x, -ARENA + 1.25, ARENA - 1.25); entity.position.z = clamp(entity.position.z, -ARENA + 1.25, ARENA - 1.25);
   const desiredFacing = desired.lengthSq() > 0.02 ? Math.atan2(-desired.x, -desired.z) : null;
-  if (desiredFacing !== null) {
-    let diff = desiredFacing - entity.rotation.y;
-    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    entity.rotation.y += diff * (1 - Math.exp(-10 * dt));
-    entity.userData.lastDirection.set(-Math.sin(entity.rotation.y), 0, -Math.cos(entity.rotation.y));
-  }
-}
-
-function clearLineOfSight(from, to) {
-  const obstacles = [arenaGroup.children.find(o => o.geometry?.type === 'BoxGeometry' && Math.abs(o.position.x + 5) < .01), ...arenaGroup.children].filter(Boolean);
-  const ray = new THREE.Raycaster(from.clone().add(new THREE.Vector3(0, .7, 0)), to.clone().sub(from), 0, from.distanceTo(to));
-  return ray.intersectObjects(obstacles, false).length === 0;
+  if (desiredFacing !== null) { let diff = desiredFacing - entity.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); entity.rotation.y += diff * (1 - Math.exp(-10 * dt)); entity.userData.lastDirection.set(-Math.sin(entity.rotation.y), 0, -Math.cos(entity.rotation.y)); }
 }
 function shoot(shooter, target, isPlayer) {
-  const now = performance.now();
-  if (now - (shooter.userData.lastShot || 0) < (isPlayer ? 360 : 640)) return;
+  const now = performance.now(); if (now - (shooter.userData.lastShot || 0) < (isPlayer ? 360 : 640)) return;
   shooter.userData.lastShot = now;
-  const direction = target ? target.position.clone().sub(shooter.position) : shooter.userData.lastDirection.clone();
-  direction.y = 0;
-  if (direction.lengthSq() < 0.001) return;
-  direction.normalize();
+  const direction = target ? target.position.clone().sub(shooter.position) : shooter.userData.lastDirection.clone(); direction.y = 0;
+  if (direction.lengthSq() < 0.001) return; direction.normalize();
   shooter.userData.gun.rotation.y = Math.atan2(-direction.x, -direction.z) - shooter.rotation.y;
   const color = isPlayer ? 0x68f2ff : 0xff7183;
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), new THREE.MeshBasicMaterial({ color }));
-  mesh.position.copy(shooter.position).add(new THREE.Vector3(0, 0.95, 0)).addScaledVector(direction, 1.15);
-  scene.add(mesh);
+  mesh.position.copy(shooter.position).add(new THREE.Vector3(0, 0.95, 0)).addScaledVector(direction, 1.15); scene.add(mesh);
   projectiles.push({ mesh, velocity: direction.multiplyScalar(isPlayer ? 19 : 15), owner: shooter, damage: 18, life: 2.2 });
 }
 function botInput(dt) {
-  const delta = player.position.clone().sub(bot.position); delta.y = 0;
-  const distance = delta.length();
-  const direction = delta.normalize();
-  let move = new THREE.Vector3();
-  if (distance > 7) move.copy(direction);
-  else if (distance < 4.5) move.copy(direction).negate();
-  else move.set(-direction.z * Math.sin(performance.now() / 1100), 0, direction.x * Math.sin(performance.now() / 1100));
-  if (distance > 0.001) {
-    const aim = Math.atan2(-direction.x, -direction.z); let diff = aim - bot.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); bot.rotation.y += diff * (1 - Math.exp(-5 * dt));
-    bot.userData.lastDirection.set(-Math.sin(bot.rotation.y), 0, -Math.cos(bot.rotation.y));
-    if (distance < 14) shoot(bot, player, false);
-  }
+  const delta = player.position.clone().sub(bot.position); delta.y = 0; const distance = delta.length(); const direction = delta.normalize(); const move = new THREE.Vector3();
+  if (distance > 7) move.copy(direction); else if (distance < 4.5) move.copy(direction).negate(); else { const side = new THREE.Vector3(-direction.z, 0, direction.x); move.copy(side).multiplyScalar(Math.sin(performance.now() / 1100) >= 0 ? 1 : -1); }
+  if (distance > 0.001) { const aim = Math.atan2(-direction.x, -direction.z); let diff = aim - bot.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); bot.rotation.y += diff * (1 - Math.exp(-5 * dt)); bot.userData.lastDirection.set(-Math.sin(bot.rotation.y), 0, -Math.cos(bot.rotation.y)); if (distance < 14) shoot(bot, player, false); }
   return move;
 }
 function tickProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i]; p.life -= dt; p.mesh.position.addScaledVector(p.velocity, dt);
-    const target = p.owner === player ? bot : player;
-    let hit = p.mesh.position.distanceTo(new THREE.Vector3(target.position.x, 0.8, target.position.z)) < 1.0;
+    const target = p.owner === player ? (gameMode === 'lan' ? remotePlayer : bot) : player;
+    const hit = target && p.mesh.position.distanceTo(new THREE.Vector3(target.position.x, 0.8, target.position.z)) < 1.0;
     if (!hit && (Math.abs(p.mesh.position.x) > ARENA || Math.abs(p.mesh.position.z) > ARENA)) p.life = 0;
     if (hit && running) {
-      if (target === player) playerHealth = Math.max(0, playerHealth - p.damage); else botHealth = Math.max(0, botHealth - p.damage);
-      target.userData.velocity.addScaledVector(p.velocity, 0.22); p.life = 0; updateHud();
-      if (target === player && playerHealth <= 0) endRound(false);
-      if (target === bot && botHealth <= 0) endRound(true);
+      if (target === player) playerHealth = Math.max(0, playerHealth - p.damage);
+      else if (gameMode === 'lan') { remoteHealth = Math.max(0, remoteHealth - p.damage); }
+      else botHealth = Math.max(0, botHealth - p.damage);
+      target.userData.velocity?.addScaledVector(p.velocity, 0.22); p.life = 0; updateHud();
+      if (gameMode === 'bot' && target === player && playerHealth <= 0) endRound(false);
+      if (gameMode === 'bot' && target === bot && botHealth <= 0) endRound(true);
     }
     if (p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); }
   }
 }
 function endRound(playerWon) {
-  if (!running) return;
-  running = false;
-  if (playerWon) playerScore++; else botScore++;
-  updateHud();
-  const winner = playerScore >= 3 || botScore >= 3;
-  const message = $('#game-message'); message.textContent = winner ? (playerScore >= 3 ? 'VICTOIRE !' : 'LE BOT GAGNE') : (playerWon ? 'ÉLIMINATION !' : 'VÉHICULE DÉTRUIT'); message.classList.remove('hidden');
+  if (!running) return; running = false;
+  if (playerWon) playerScore++; else botScore++; updateHud();
+  const winner = playerScore >= 3 || botScore >= 3; const message = $('#game-message');
+  message.textContent = winner ? (playerScore >= 3 ? 'VICTOIRE !' : 'LE BOT GAGNE') : (playerWon ? 'ÉLIMINATION !' : 'VÉHICULE DÉTRUIT'); message.classList.remove('hidden');
   statusLabel.textContent = winner ? 'MATCH TERMINÉ' : 'MANCHE TERMINÉE • RELANCE POUR CONTINUER';
-  if (!winner) window.setTimeout(() => { if (!running) { resetRound(); running = true; statusLabel.textContent = gameMode === 'bot' ? 'NOUVELLE MANCHE • CONTRE LE BOT' : `SALLE ${roomCode} • NOUVELLE MANCHE`; message.classList.add('hidden'); } }, 1500);
+  if (!winner && gameMode === 'bot') window.setTimeout(() => { if (!running) { resetRound(); running = true; statusLabel.textContent = 'NOUVELLE MANCHE • CONTRE LE BOT'; message.classList.add('hidden'); } }, 1500);
 }
 function resolveObstacleCollision(entity) {
   const obstacles = arenaGroup.children.filter(o => o.geometry?.type === 'BoxGeometry' && o.geometry.parameters?.height > 0.5);
   for (const box of obstacles) {
     const { width, depth } = box.geometry.parameters;
-    const minX = box.position.x - width / 2 - .7, maxX = box.position.x + width / 2 + .7;
-    const minZ = box.position.z - depth / 2 - .7, maxZ = box.position.z + depth / 2 + .7;
+    const minX = box.position.x - width / 2 - .7, maxX = box.position.x + width / 2 + .7, minZ = box.position.z - depth / 2 - .7, maxZ = box.position.z + depth / 2 + .7;
     if (entity.position.x > minX && entity.position.x < maxX && entity.position.z > minZ && entity.position.z < maxZ) {
-      const exits = [entity.position.x - minX, maxX - entity.position.x, entity.position.z - minZ, maxZ - entity.position.z];
-      const nearest = exits.indexOf(Math.min(...exits));
+      const exits = [entity.position.x - minX, maxX - entity.position.x, entity.position.z - minZ, maxZ - entity.position.z], nearest = exits.indexOf(Math.min(...exits));
       if (nearest === 0) entity.position.x = minX; else if (nearest === 1) entity.position.x = maxX; else if (nearest === 2) entity.position.z = minZ; else entity.position.z = maxZ;
-      entity.userData.velocity.multiplyScalar(0.45);
+      entity.userData.velocity.multiplyScalar(.45);
     }
   }
+}
+function updateRemote(data) {
+  if (!remotePlayer) { remotePlayer = vehicle(0xff526c, 0xffb350); scene.add(remotePlayer); }
+  remotePlayer.position.set(clamp(Number(data.x) || 0, -ARENA + 1.25, ARENA - 1.25), 0, clamp(Number(data.z) || 0, -ARENA + 1.25, ARENA - 1.25));
+  remotePlayer.rotation.y = Number(data.yaw) || 0;
+  remoteHealth = Number.isFinite(data.health) ? data.health : remoteHealth;
+  $('#bot-health').style.width = `${remoteHealth}%`; $('#bot-score').textContent = Number(data.score) || 0;
+  if (data.fire && performance.now() - lastRemoteShot > 220) { lastRemoteShot = performance.now(); shoot(remotePlayer, player, false); }
 }
 function animate() {
-  animationFrame = requestAnimationFrame(animate);
-  if (!renderer || !scene || !camera || !player || !bot) return;
-  const dt = Math.min(clock.getDelta(), 0.05);
+  animationFrame = requestAnimationFrame(animate); if (!renderer || !scene || !camera || !player || !bot) return;
+  const dt = Math.min(clock.getDelta(), .05);
   if (running) {
-    let direction = new THREE.Vector3((keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('q') || keys.has('arrowleft') ? 1 : 0), 0, (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('z') || keys.has('arrowup') ? 1 : 0));
-    direction.add(new THREE.Vector3(touchMove.x, 0, touchMove.z));
-    moveEntity(player, direction, PLAYER_SPEED, dt);
-    if (keys.has(' ') || touchMove.firing) shoot(player, bot, true);
+    if (gameMode !== 'lan' || roomRole === 1) {
+      const direction = new THREE.Vector3((keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('q') || keys.has('arrowleft') ? 1 : 0), 0, (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('z') || keys.has('arrowup') ? 1 : 0));
+      direction.add(new THREE.Vector3(touchMove.x, 0, touchMove.z)); moveEntity(player, direction, PLAYER_SPEED, dt);
+      if (keys.has(' ') || touchMove.firing) shoot(player, gameMode === 'lan' ? remotePlayer : bot, true);
+    }
     if (gameMode === 'bot') moveEntity(bot, botInput(dt), BOT_SPEED, dt);
-    resolveObstacleCollision(player); resolveObstacleCollision(bot);
+    if (gameMode === 'lan') { if (roomRole === 2 && remotePlayer) moveEntity(bot, new THREE.Vector3(), 0, dt); }
+    resolveObstacleCollision(player); if (gameMode === 'bot') resolveObstacleCollision(bot);
     tickProjectiles(dt);
   }
-  const target = player.position.clone();
-  const behind = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-  const desiredCamera = target.clone().addScaledVector(behind, 8.8).add(new THREE.Vector3(0, 6.2, 0));
-  camera.position.lerp(desiredCamera, 1 - Math.exp(-4.2 * dt));
-  camera.lookAt(target.clone().add(new THREE.Vector3(0, 1.1, 0)));
-  if (arenaGroup) arenaGroup.rotation.y += dt * 0.012;
+  const target = player.position.clone(), behind = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+  const desiredCamera = target.clone().addScaledVector(behind, 8.8).add(new THREE.Vector3(0, 6.2, 0)); camera.position.lerp(desiredCamera, 1 - Math.exp(-4.2 * dt)); camera.lookAt(target.clone().add(new THREE.Vector3(0, 1.1, 0)));
   renderer.render(scene, camera);
 }
-
-window.addEventListener('keydown', (event) => {
-  const key = event.key.toLowerCase();
-  if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) event.preventDefault();
-  keys.add(key);
-});
-window.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => keys.clear());
-
+window.addEventListener('keydown', event => { const key = event.key.toLowerCase(); if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) event.preventDefault(); keys.add(key); });
+window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase())); window.addEventListener('blur', () => keys.clear());
 $('#play-button').addEventListener('click', startGame);
-document.querySelectorAll('.mode-tab').forEach(button => button.addEventListener('click', () => {
-  document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.toggle('active', tab === button));
-  gameMode = button.dataset.mode;
-  $('#bot-options').classList.toggle('hidden', gameMode !== 'bot');
-  $('#lan-options').classList.toggle('hidden', gameMode !== 'lan');
-  $('#play-button').classList.toggle('hidden', gameMode === 'lan');
-  $('#enemy-label').textContent = gameMode === 'bot' ? 'BLINDAGE BOT' : 'BLINDAGE ADVERSAIRE';
-}));
-$('#sound-toggle').addEventListener('click', e => { e.currentTarget.classList.toggle('muted'); });
-
-const joystick = $('#joystick'), knob = $('#joystick-knob');
-let joystickPointer = null;
-joystick.addEventListener('pointerdown', event => { joystickPointer = event.pointerId; joystick.setPointerCapture(event.pointerId); updateJoystick(event); });
-joystick.addEventListener('pointermove', event => { if (event.pointerId === joystickPointer) updateJoystick(event); });
-function updateJoystick(event) {
-  const rect = joystick.getBoundingClientRect(), radius = rect.width * 0.34;
-  const dx = event.clientX - (rect.left + rect.width / 2), dy = event.clientY - (rect.top + rect.height / 2);
-  const length = Math.min(radius, Math.hypot(dx, dy)), angle = Math.atan2(dy, dx);
-  const x = Math.cos(angle) * length, y = Math.sin(angle) * length;
-  knob.style.transform = `translate(${x}px, ${y}px)`; touchMove.x = x / radius; touchMove.z = y / radius;
-}
+document.querySelectorAll('.mode-tab').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.toggle('active', tab === button)); gameMode = button.dataset.mode; $('#bot-options').classList.toggle('hidden', gameMode !== 'bot'); $('#lan-options').classList.toggle('hidden', gameMode !== 'lan'); $('#play-button').classList.toggle('hidden', gameMode === 'lan'); $('#enemy-label').textContent = gameMode === 'bot' ? 'BLINDAGE BOT' : 'BLINDAGE ADVERSAIRE'; }));
+$('#sound-toggle').addEventListener('click', e => e.currentTarget.classList.toggle('muted'));
+const joystick = $('#joystick'), knob = $('#joystick-knob'); let joystickPointer = null;
+joystick.addEventListener('pointerdown', event => { joystickPointer = event.pointerId; joystick.setPointerCapture(event.pointerId); updateJoystick(event); }); joystick.addEventListener('pointermove', event => { if (event.pointerId === joystickPointer) updateJoystick(event); });
+function updateJoystick(event) { const rect = joystick.getBoundingClientRect(), radius = rect.width * .34; const dx = event.clientX - (rect.left + rect.width / 2), dy = event.clientY - (rect.top + rect.height / 2); const length = Math.min(radius, Math.hypot(dx, dy)), angle = Math.atan2(dy, dx); const x = Math.cos(angle) * length, y = Math.sin(angle) * length; knob.style.transform = `translate(${x}px, ${y}px)`; touchMove.x = x / radius; touchMove.z = y / radius; }
 function releaseJoystick(event) { if (event.pointerId !== joystickPointer) return; joystickPointer = null; touchMove.x = touchMove.z = 0; knob.style.transform = 'translate(0, 0)'; }
 joystick.addEventListener('pointerup', releaseJoystick); joystick.addEventListener('pointercancel', releaseJoystick);
-const fireButton = $('#fire-button');
-fireButton.addEventListener('pointerdown', e => { e.preventDefault(); touchMove.firing = true; fireButton.setPointerCapture(e.pointerId); });
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fireButton.addEventListener(name, () => touchMove.firing = false);
-
+const fireButton = $('#fire-button'); fireButton.addEventListener('pointerdown', e => { e.preventDefault(); touchMove.firing = true; fireButton.setPointerCapture(e.pointerId); }); for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fireButton.addEventListener(name, () => touchMove.firing = false);
 function setLanHint(text) { $('#lan-hint').textContent = text; }
-function connectRoom() {
+function connectRoom(action = 'join') {
   if (roomSocket?.readyState === WebSocket.OPEN) return;
-  const socketUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
-  roomSocket = new WebSocket(socketUrl);
-  roomSocket.onopen = () => {
-    clearTimeout(reconnectTimer);
-    roomSocket.send(JSON.stringify({ type: 'join', code: roomCode }));
-    setLanHint(`Connexion au salon ${roomCode}…`);
-  };
-  roomSocket.onmessage = event => {
-    let packet; try { packet = JSON.parse(event.data); } catch { return; }
-    if (packet.type === 'room') { roomCode = packet.code; setLanHint(`Salon ${roomCode} • partage le lien de la page au même réseau Wi-Fi.`); }
-    if (packet.type === 'state' && packet.state?.player) {
-      const remote = packet.state.player;
-      if (gameMode === 'lan' && bot) { bot.position.set(remote.x || 0, 0, remote.z || 0); bot.rotation.y = remote.yaw || 0; }
-    }
+  const socketUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`; roomSocket = new WebSocket(socketUrl);
+  roomSocket.onopen = () => { clearTimeout(reconnectTimer); roomSocket.send(JSON.stringify({ type: action, code: roomCode })); setLanHint(`Connexion au salon ${roomCode}…`); };
+  roomSocket.onmessage = event => { let packet; try { packet = JSON.parse(event.data); } catch { return; }
+    if (packet.type === 'room') { roomCode = packet.code; roomRole = packet.player; setLanHint(packet.count === 2 ? `Salon ${roomCode} • adversaire connecté.` : `Salon ${roomCode} • en attente de l’ami. Partage le lien local ou le code.`); }
+    if (packet.type === 'peer') { setLanHint(packet.connected ? 'Adversaire connecté. La partie amicale peut commencer !' : 'Adversaire déconnecté. En attente de reconnexion…'); }
+    if (packet.type === 'state' && packet.player) updateRemote(packet.player);
     if (packet.type === 'error') setLanHint(packet.message || 'Connexion au salon impossible.');
   };
-  roomSocket.onclose = () => { if (running && gameMode === 'lan') reconnectTimer = window.setTimeout(connectRoom, 1800); };
+  roomSocket.onclose = () => { if (running && gameMode === 'lan') reconnectTimer = window.setTimeout(() => connectRoom(action), 1800); };
   roomSocket.onerror = () => setLanHint('Serveur local inaccessible. Ouvre le jeu via le lien affiché par le PC hôte.');
 }
-function sendRoomState() {
-  if (gameMode !== 'lan' || roomSocket?.readyState !== WebSocket.OPEN || !player) return;
-  roomSocket.send(JSON.stringify({ type: 'state', code: roomCode, player: { x: player.position.x, z: player.position.z, yaw: player.rotation.y, health: playerHealth, score: playerScore } }));
-}
+let networkSendAt = 0;
+function sendRoomState() { if (gameMode !== 'lan' || roomSocket?.readyState !== WebSocket.OPEN || !player || !running) return; const now = performance.now(); const packet = { type: 'state', code: roomCode, player: { x: player.position.x, z: player.position.z, yaw: player.rotation.y, health: playerHealth, score: playerScore, fire: touchMove.firing || keys.has(' ') } }; roomSocket.send(JSON.stringify(packet)); networkSendAt = now; }
 window.setInterval(sendRoomState, 50);
-$('#create-room').addEventListener('click', () => {
-  roomCode = Math.random().toString(36).slice(2, 7).toUpperCase();
-  $('#room-code').value = roomCode;
-  gameMode = 'lan'; init3D(); startGame();
-  const shareUrl = `${location.origin}${location.pathname}?room=${roomCode}`;
-  const box = $('#share-box'); box.classList.remove('hidden');
-  const link = document.createElement('a'); link.href = shareUrl; link.textContent = shareUrl; link.target = '_blank'; link.rel = 'noopener';
-  const qr = document.createElement('img'); qr.alt = 'QR code pour rejoindre cette partie'; qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`;
-  box.replaceChildren(qr, link);
-  connectRoom();
-});
-$('#join-room').addEventListener('click', () => {
-  roomCode = $('#room-code').value.trim().toUpperCase();
-  if (!/^[A-Z0-9]{5}$/.test(roomCode)) { setLanHint('Entre un code de salon valide à 5 caractères.'); return; }
-  gameMode = 'lan'; startGame(); connectRoom();
-});
-const urlRoom = new URLSearchParams(location.search).get('room');
-if (urlRoom && /^[A-Z0-9]{5}$/i.test(urlRoom)) { gameMode = 'lan'; $('#room-code').value = urlRoom.toUpperCase(); document.querySelector('[data-mode="lan"]').click(); }
-
+$('#create-room').addEventListener('click', () => { roomCode = Math.random().toString(36).slice(2, 7).toUpperCase(); $('#room-code').value = roomCode; gameMode = 'lan'; roomRole = 1; startGame(); const shareUrl = `${location.origin}${location.pathname}?room=${roomCode}`; const box = $('#share-box'); box.classList.remove('hidden'); const link = document.createElement('a'); link.href = shareUrl; link.textContent = shareUrl; link.target = '_blank'; link.rel = 'noopener'; const qr = document.createElement('img'); qr.alt = 'QR code pour rejoindre cette partie'; qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`; box.replaceChildren(qr, link); connectRoom('create'); });
+$('#join-room').addEventListener('click', () => { roomCode = $('#room-code').value.trim().toUpperCase(); if (!/^[A-Z0-9]{5}$/.test(roomCode)) { setLanHint('Entre un code de salon valide à 5 caractères.'); return; } gameMode = 'lan'; roomRole = 2; startGame(); connectRoom('join'); });
+const urlRoom = new URLSearchParams(location.search).get('room'); if (urlRoom && /^[A-Z0-9]{5}$/i.test(urlRoom)) { gameMode = 'lan'; $('#room-code').value = urlRoom.toUpperCase(); document.querySelector('[data-mode="lan"]').click(); }
 init3D();
