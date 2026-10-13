@@ -6,14 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "start": "npm run build && node server.js",
-    "server": "node server.js"
+    "start": "npm run build && node server.js"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "express": "^4.21.2",
+    "three": "^0.179.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
-    "vite": "^6.4.4"
+    "vite": "^6.4.1"
   }
 }
